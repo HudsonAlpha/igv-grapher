@@ -67,6 +67,7 @@ done
 echo \
 "goto ${CHROM}:${START}-${END}
 expand
+sort quality
 snapshot ${OUTPUT_FILENAME}
 exit" \
 >> ${COMMANDS_FILE}
