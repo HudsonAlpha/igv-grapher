@@ -12,7 +12,7 @@ parser.add_argument('-b', '--bams', type=str, help="BAMS", nargs='+', required=T
 parser.add_argument('-g', '--genome', type=str, default="hg38", help="Genome (hg19 or hg38)")
 parser.add_argument('-p', '--prefix', type=str, default="", help="File prefix.")
 parser.add_argument('-s', '--slop', type=int, default=0, help="Slop: Number of bases to add at beginning and end of graph")
-parser.add_argument('-n', '--indel-bp-threshold', default=1, help="Hide indels below this length.")
+parser.add_argument('-n', '--indel-bp-threshold', default=10, help="Hide indels below this length.")
 parser.add_argument('--print', action="store_true", help="Print commands instead of executing them")
 parser.add_argument('--bsub', action="store_true", help="Submit via LSF to default queue with recommended resources.")
 parser.add_argument('--force-igv', action="store_true", help="Do not overflow large calls to samplot")
