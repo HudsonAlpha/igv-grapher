@@ -1,8 +1,10 @@
 #!/bin/bash
-PATH=/gpfs/gpfs2/software/utils/xvfb/:/gpfs/gpfs2/software/igv-2.4.13/$PATH
-IGV_MEM=16384m
+PATH=/gpfs/gpfs2/software/utils/xvfb:$PATH
+export IGV_MEM=16384m
 GENOME="hg38"
 INDEL_BP_THRESHOLD=1
+prefix=`dirname $(readlink $0 || echo $0)`
+
 usage(){
   echo "$0 -b BAM_PATH [-b BAM_PATH] -r REGION [-c CHROMOSOME] [-s START] [-e END] -o OUTPUT_FILENAME [-n MIN_INDEL_TO_SHOW] [-g GENOME]  ..." >&2
   exit
@@ -38,7 +40,7 @@ for B in ${BAMPATHS[@]}; do
     echo "Supplied bam ${B} does not exist."
     exit 1
   fi
-  if [[ ! -f ${B}.bai ]]; then
+  if [[ ! (-f ${B}.bai || ${B}.tbi) ]]; then
     echo "Supplied bam ${B} is not indexed."
     exit 1
   fi
@@ -71,4 +73,4 @@ sort quality
 snapshot ${OUTPUT_FILENAME}
 exit" \
 >> ${COMMANDS_FILE}
-xvfb-run-safe /gpfs/gpfs2/software/igv-2.4.13/igv.sh --batch ${COMMANDS_FILE}
+xvfb-run-safe ${prefix}/igv.sh --batch ${COMMANDS_FILE}

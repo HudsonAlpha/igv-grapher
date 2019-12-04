@@ -15,6 +15,9 @@ parser.add_argument('-s', '--slop', type=int, default=0, help="Slop: Number of b
 parser.add_argument('-n', '--indel-bp-threshold', default=1, help="Hide indels below this length.")
 parser.add_argument('--print', action="store_true", help="Print commands instead of executing them")
 parser.add_argument('--bsub', action="store_true", help="Submit via LSF to default queue with recommended resources.")
+parser.add_argument('--force-igv', action="store_true", help="Do not overflow large calls to samplot")
+parser.add_argument('--overflow', type=int, default=10, help="Integer number of megabases to overflow to samplot split-style graph")
+
 
 
 args = parser.parse_args()
@@ -44,12 +47,16 @@ for line in inputfile:
     format = line[8]
     info_dict = {x.split('=')[0]: x.split('=')[1] for x in info.split(';') if '=' in x}
     #info_list = [x: True for x in info.split(';') if '=' not in x]
+    # Get original start and end. Do this first so we have a trace in filename
+    svlen = int(info_dict.get('SVLEN', 0))
     start = pos
+    if info_dict.get('SVTYPE') == 'TRA':
+        continue
     if 'END' in info_dict:
         end = int(info_dict['END'])
     else:
-        end = start + 30
-
+        end = start
+    # Build filename
     name = ""
     if id != '.':
         name = name + "_" + id
@@ -57,6 +64,7 @@ for line in inputfile:
         name = name + "_" + info_dict['SVTYPE']
     if 'SVANN' in info_dict:
         name = name + "_" + info_dict['SVANN']
+
 
     name = re.sub(r"[:,. \*]", "_", name) # clean to prevent filename weirdness
 
@@ -66,21 +74,39 @@ for line in inputfile:
         filename = filename + "_" + name
     if args.prefix != "":
         filename = args.prefix + "_" + filename
+
+    # Modify start and end for special cases
+
+    if start == end: # grab insertions and change viewing area
+        start = start - svlen
+        end = end + svlen
+
+
+    # Modify start and end with slop
+    width = abs(end-start)
     if args.slop == 0:
-        width = abs(end-start)
-        slop = int(float(width)*0.10)
+        if width > 1000000:
+            expand = 0.10
+        else:
+            expand = 0.45
+        slop = max(int(float(width)*expand),100)
     else:
         slop = args.slop
 
 
     start = max(start - slop, 1)
     end = end + slop
+    if not args.force_igv and (width > args.overflow * 1000000):
+        command="/gpfs/gpfs2/cooperlab/igv-grapher/env/bin/python /gpfs/gpfs2/cooperlab/igv-grapher/samplot/src/samplot.py -H 15 --zoom 500000 -c {chrom} -s {start} -e {end} -o {output} -b {bams} -t {type}".format(type=info_dict.get('SVTYPE', 'UNK'), start=start, end=end, chrom=chrom, output=filename+".png", bams=" ".join(args.bams))
+        if args.genome == 'hg38':
+            command += " -T /gpfs/gpfs2/cooperlab/igv-grapher/genomes/gencode.Homo_sapiens.GRCh38.97.gff3.gz"
+    else:
+        command = "/gpfs/gpfs2/cooperlab/igv-grapher/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
+        for bam in args.bams:
+            command += ' -b {}'.format(bam)
 
-    command = "/gpfs/gpfs2/cooperlab/igv-grapher/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
-    for bam in args.bams:
-        command += ' -b {}'.format(bam)
     if args.bsub:
-        command = 'bsub -R rusage[mem=24576] -n 1 ' + command
+        command = 'bsub -R rusage[mem=24576] -n 1 -o igv_grapher.log ' + command
     if args.print:
         print(command)
     else:

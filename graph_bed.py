@@ -15,7 +15,7 @@ parser.add_argument('-p', '--prefix', type=str, default="", help="File prefix.")
 parser.add_argument('-s', '--slop', type=int, default=0, help="Slop: Number of bases to add at beginning and end of graph")
 parser.add_argument('-n', '--indel-bp-threshold', default=1, help="Hide indels below this length.")
 parser.add_argument('--print', action="store_true", help="Print commands instead of executing them")
-
+parser.add_argument('--bsub',action='store_true', help="use bsub.")
 
 args = parser.parse_args()
 
@@ -50,8 +50,8 @@ for line in inputfile:
         filename = filename + "_" + name
     if args.prefix != "":
         filename = args.prefix + "_" + filename
+    width = abs(end-start)
     if args.slop == 0:
-        width = abs(end-start)
         slop = int(float(width)*0.10)
     else:
         slop = args.slop
