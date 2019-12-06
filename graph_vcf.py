@@ -5,6 +5,7 @@ import gzip
 import sys
 import subprocess
 import re
+from pybedtools import BedTool
 
 parser = argparse.ArgumentParser(description="Use IGV to graph BED regions")
 parser.add_argument('-v', '--vcf', type=str, help="VCF input filename", required=True)
@@ -17,6 +18,7 @@ parser.add_argument('--print', action="store_true", help="Print commands instead
 parser.add_argument('--bsub', action="store_true", help="Submit via LSF to default queue with recommended resources.")
 parser.add_argument('--force-igv', action="store_true", help="Do not overflow large calls to samplot")
 parser.add_argument('--overflow', type=int, default=10, help="Integer number of megabases to overflow to samplot split-style graph")
+parser.add_argument('-r', '--regions', type=str, help="Regions of interest. Only print events intersecting these items.")
 
 
 
@@ -93,6 +95,11 @@ for line in inputfile:
     else:
         slop = args.slop
 
+    if args.regions:
+        regions = BedTool(args.regions)
+        q = BedTool([(chrom,start,end)])[0]
+        if regions.any_hits(q) == 0:
+            continue
 
     start = max(start - slop, 1)
     end = end + slop
