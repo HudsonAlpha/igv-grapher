@@ -6,6 +6,7 @@ import sys
 import subprocess
 import re
 from pybedtools import BedTool
+import tempfile
 
 parser = argparse.ArgumentParser(description="Use IGV to graph BED regions")
 parser.add_argument('-v', '--vcf', type=str, help="VCF input filename", required=True)
@@ -18,12 +19,15 @@ parser.add_argument('--print', action="store_true", help="Print commands instead
 parser.add_argument('--bsub', action="store_true", help="Submit via LSF to default queue with recommended resources.")
 parser.add_argument('--force-igv', action="store_true", help="Do not overflow large calls to samplot")
 parser.add_argument('--overflow', type=int, default=10, help="Integer number of megabases to overflow to samplot split-style graph")
-parser.add_argument('-r', '--regions', type=str, help="Regions of interest. Only print events intersecting these items.")
+#parser.add_argument('-r', '--regions', type=str, help="Regions of interest. Only print events intersecting these items.")
 
 
 
 args = parser.parse_args()
 
+#if args.regions:
+#    tmpvcf = tempfile.NamedTemporaryFile()
+#    cmd = 'bcftools view -R {regionsfilename} -O v -o {vcf}'
 
 if args.vcf.endswith('gz'):
     inputfile = gzip.open(args.vcf, 'rt')
@@ -61,11 +65,13 @@ for line in inputfile:
     # Build filename
     name = ""
     if id != '.':
-        name = name + "_" + id
+        name = name + "_ID." + id
     if 'SVTYPE' in info_dict:
-        name = name + "_" + info_dict['SVTYPE']
+        name = name + "_TYPE." + info_dict['SVTYPE']
     if 'SVANN' in info_dict:
-        name = name + "_" + info_dict['SVANN']
+        name = name + "_ANN." + info_dict['SVANN']
+    if 'SVLEN' in info_dict:
+        name = name + "_LEN." + info_dict['SVLEN']
 
 
     name = re.sub(r"[:,. \*]", "_", name) # clean to prevent filename weirdness
@@ -95,11 +101,6 @@ for line in inputfile:
     else:
         slop = args.slop
 
-    if args.regions:
-        regions = BedTool(args.regions)
-        q = BedTool([(chrom,start,end)])[0]
-        if regions.any_hits(q) == 0:
-            continue
 
     start = max(start - slop, 1)
     end = end + slop
