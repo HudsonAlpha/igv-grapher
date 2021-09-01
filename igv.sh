@@ -7,6 +7,11 @@
 #Add the flag -Ddevelopment = true to use features still in development
 
 
+if [ -z ${GCOOPERLAB_CONFIG_SET+x } ]; then
+  echo "You need to source the gcooperlab config path in before use."
+  exit
+fi
+
 IGV_MEM=${IGV_MEM:-4000m}
 TMP_SYS=$(mktemp -d)
 TMP_USER=$(mktemp -d)

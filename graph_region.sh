@@ -3,14 +3,15 @@ PATH=/gpfs/gpfs2/software/utils/xvfb:$PATH
 export IGV_MEM=16384m
 GENOME="hg38"
 INDEL_BP_THRESHOLD=1
+VIEW="expand"
 prefix=`dirname $(readlink $0 || echo $0)`
 
 usage(){
-  echo "$0 -b BAM_PATH [-b BAM_PATH] -r REGION [-c CHROMOSOME] [-s START] [-e END] -o OUTPUT_FILENAME [-n MIN_INDEL_TO_SHOW] [-g GENOME]  ..." >&2
+  echo "$0 -b BAM_PATH [-b BAM_PATH] [-v expand|squish|collapse] -r REGION [-c CHROMOSOME] [-s START] [-e END] -o OUTPUT_FILENAME [-n MIN_INDEL_TO_SHOW] [-g GENOME]  ..." >&2
   exit
 
 }
-while getopts b:g:o:n:hc:s:e:r: opt; do
+while getopts b:g:o:n:hc:s:e:r:v: opt; do
         case ${opt} in
                 b ) BAMPATHS+=("${OPTARG}")
                 ;;
@@ -29,6 +30,8 @@ while getopts b:g:o:n:hc:s:e:r: opt; do
                 h ) usage
                 ;;
                 r ) REGION=${OPTARG}
+		;;
+		v ) VIEW=${OPTARG}
         esac
 done
 
@@ -64,7 +67,7 @@ preference SAM.SMALL_INDEL_BP_THRESHOLD ${INDEL_BP_THRESHOLD}
 preference DEFAULT_VISIBILITY_WINDOW -1
 preference SAM.SHOW_SOFT_CLIPPED true
 preference SAM.FLAG_UNMAPPED_PAIR true
-preference SAM.FILTER_DUPLICATES true
+preference SAM.FILTER_DUPLICATES false
 preference SAM.FILTER_SECONDARY_ALIGNMENTS false
 preference SAM.HIDDEN_TAGS XA,RG
 preference SAM.FILTER_FAILED_READS true
@@ -73,6 +76,8 @@ preference SAM.GROUP_OPTION BASE_AT_POS
 preference SHOW_REGION_BARS true
 preference SAM.QUALITY_THRESHOLD=-1
 preference SAM.GROUP_OPTION=SUPPLEMENTARY
+preference SAM.COLOR_BY=UNEXPECTED_PAIR
+preference SAM.GROUP_BY_TAG=HP
 new
 genome ${GENOME}" >> ${COMMANDS_FILE}
 for B in ${BAMPATHS[@]}; do
@@ -80,9 +85,11 @@ for B in ${BAMPATHS[@]}; do
 done
 echo \
 "goto ${CHROM}:${START}-${END}
-expand
-sort quality
+${VIEW}
+group tag HP
+sort start
 snapshot ${OUTPUT_FILENAME}
 exit" \
 >> ${COMMANDS_FILE}
+sed -i 's/-1=null/-1/' ~/igv/prefs.properties
 xvfb-run-safe ${prefix}/igv.sh --batch ${COMMANDS_FILE}

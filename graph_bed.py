@@ -5,8 +5,11 @@ import gzip
 import sys
 import subprocess
 import re
+import os
 
-parser = argparse.ArgumentParser(description="Use IGV to graph BED regions")
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
+
+parser = argparse.ArgumentParser(description="Use IGV to graph BED regions. Location:{}".format(SCRIPT_PATH))
 parser.add_argument('-r', '--bed', type=str, help="BED input filename", required=True)
 parser.add_argument('-t', '--title', type=int, help="BED title column", default=4)
 parser.add_argument('-b', '--bams', type=str, help="BAMS", nargs='+', required=True)
@@ -60,11 +63,11 @@ for line in inputfile:
     start = max(start - slop, 1)
     end = end + slop
 
-    command = "/gpfs/gpfs2/cooperlab/igv-grapher/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
+    command = SCRIPT_PATH + "/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
     for bam in args.bams:
         command += ' -b {}'.format(bam)
     if args.bsub:
-        command = 'bsub -R rusage[mem=24576] -n 1 ' + command
+        command = 'bsub -R rusage[mem=24576] -n 1 -We 0:05 ' + command
     if args.print:
         print(command)
     else:

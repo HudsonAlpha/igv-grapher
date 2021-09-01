@@ -7,6 +7,9 @@ import subprocess
 import re
 from pybedtools import BedTool
 import tempfile
+import os
+
+SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
 parser = argparse.ArgumentParser(description="Use IGV to graph BED regions")
 parser.add_argument('-v', '--vcf', type=str, help="VCF input filename", required=True)
@@ -50,7 +53,7 @@ for line in inputfile:
     qual = line[5]
     filter = line[6]
     info = line[7]
-    format = line[8]
+    #format = line[8]
     info_dict = {x.split('=')[0]: x.split('=')[1] for x in info.split(';') if '=' in x}
     #info_list = [x: True for x in info.split(';') if '=' not in x]
     # Get original start and end. Do this first so we have a trace in filename
@@ -105,11 +108,11 @@ for line in inputfile:
     start = max(start - slop, 1)
     end = end + slop
     if not args.force_igv and (width > args.overflow * 1000000):
-        command="/gpfs/gpfs2/cooperlab/igv-grapher/env/bin/python /gpfs/gpfs2/cooperlab/igv-grapher/samplot/src/samplot.py -H 15 --zoom 500000 -c {chrom} -s {start} -e {end} -o {output} -b {bams} -t {type}".format(type=info_dict.get('SVTYPE', 'UNK'), start=start, end=end, chrom=chrom, output=filename+".png", bams=" ".join(args.bams))
+        command="{SCRIPT_PATH}/env/bin/python {SCRIPT_PATH}/samplot/src/samplot.py -H 15 --zoom 500000 -c {chrom} -s {start} -e {end} -o {output} -b {bams} -t {type}".format(SCRIPT_PATH=SCRIPT_PATH, type=info_dict.get('SVTYPE', 'UNK'), start=start, end=end, chrom=chrom, output=filename+".png", bams=" ".join(args.bams))
         if args.genome == 'hg38':
-            command += " -T /gpfs/gpfs2/cooperlab/igv-grapher/genomes/gencode.Homo_sapiens.GRCh38.97.gff3.gz"
+            command += " -T {SCRIPT_PATH}/igv-grapher/genomes/gencode.Homo_sapiens.GRCh38.97.gff3.gz".format(SCRIPT_PATH=SCRIPT_PATH)
     else:
-        command = "/gpfs/gpfs2/cooperlab/igv-grapher/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
+        command = "{SCRIPT_PATH}/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(SCRIPT_PATH=SCRIPT_PATH, genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
         for bam in args.bams:
             command += ' -b {}'.format(bam)
 
