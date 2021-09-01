@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env /cluster/home/jlawlor/envs/igvgraph/bin/python3.9
 from __future__ import print_function
 import argparse
 import gzip
@@ -8,6 +8,9 @@ import re
 from pybedtools import BedTool
 import tempfile
 import os
+import img2pdf
+import tempfile
+import time
 
 SCRIPT_PATH = os.path.dirname(os.path.realpath(__file__))
 
@@ -16,12 +19,11 @@ parser.add_argument('-v', '--vcf', type=str, help="VCF input filename", required
 parser.add_argument('-b', '--bams', type=str, help="BAMS", nargs='+', required=True)
 parser.add_argument('-g', '--genome', type=str, default="hg38", help="Genome (hg19 or hg38)")
 parser.add_argument('-p', '--prefix', type=str, default="", help="File prefix.")
-parser.add_argument('-s', '--slop', type=int, default=0, help="Slop: Number of bases to add at beginning and end of graph")
+parser.add_argument('-s', '--slop', type=int, default=0, help="Slop: Number of bases to add at beginning and end of full graph")
+parser.add_argument('-k', '--breakpoint-slop', type=int, default=500, help="Number of bases to add at beginning and end of breakpoint graph")
 parser.add_argument('-n', '--indel-bp-threshold', default=10, help="Hide indels below this length.")
 parser.add_argument('--print', action="store_true", help="Print commands instead of executing them")
 parser.add_argument('--bsub', action="store_true", help="Submit via LSF to default queue with recommended resources.")
-parser.add_argument('--force-igv', action="store_true", help="Do not overflow large calls to samplot")
-parser.add_argument('--overflow', type=int, default=10, help="Integer number of megabases to overflow to samplot split-style graph")
 #parser.add_argument('-r', '--regions', type=str, help="Regions of interest. Only print events intersecting these items.")
 
 
@@ -59,6 +61,15 @@ for line in inputfile:
     # Get original start and end. Do this first so we have a trace in filename
     svlen = int(info_dict.get('SVLEN', 0))
     start = pos
+    try:
+        bnd_mate_chrom = re.compile('(chr.+)[\[\]]').search(alt).group(1).split(":")[0] #match everything from chr to right before a [ or ]. This excludes HLA* chromosomes but that's ok. Previously (chr[0-9XYM]+[:][0-9]+)
+    except AttributeError:
+        bnd_mate_chrom = None
+    try:
+        bnd_mate_pos = int(re.compile('(chr.+)[\[\]]').search(alt).group(1).split(":")[1])
+    except AttributeError:
+        bnd_mate_pos = None
+
     if info_dict.get('SVTYPE') == 'TRA':
         continue
     if 'END' in info_dict:
@@ -67,10 +78,12 @@ for line in inputfile:
         end = start
     # Build filename
     name = ""
+    svtype = None
     if id != '.':
         name = name + "_ID." + id
     if 'SVTYPE' in info_dict:
         name = name + "_TYPE." + info_dict['SVTYPE']
+        svtype = info_dict['SVTYPE']
     if 'SVANN' in info_dict:
         name = name + "_ANN." + info_dict['SVANN']
     if 'SVLEN' in info_dict:
@@ -87,7 +100,7 @@ for line in inputfile:
         filename = args.prefix + "_" + filename
 
     # Modify start and end for special cases
-
+    #print(start,end)
     if start == end: # grab insertions and change viewing area
         start = start - svlen
         end = end + svlen
@@ -103,27 +116,101 @@ for line in inputfile:
         slop = max(int(float(width)*expand),100)
     else:
         slop = args.slop
+    command = ""
 
 
-    start = max(start - slop, 1)
-    end = end + slop
-    if not args.force_igv and (width > args.overflow * 1000000):
-        command="{SCRIPT_PATH}/env/bin/python {SCRIPT_PATH}/samplot/src/samplot.py -H 15 --zoom 500000 -c {chrom} -s {start} -e {end} -o {output} -b {bams} -t {type}".format(SCRIPT_PATH=SCRIPT_PATH, type=info_dict.get('SVTYPE', 'UNK'), start=start, end=end, chrom=chrom, output=filename+".png", bams=" ".join(args.bams))
-        if args.genome == 'hg38':
-            command += " -T {SCRIPT_PATH}/igv-grapher/genomes/gencode.Homo_sapiens.GRCh38.97.gff3.gz".format(SCRIPT_PATH=SCRIPT_PATH)
+    temps_and_settings = []
+
+    if svtype == 'BND':
+        temps_and_settings.append(
+            {
+                'chrom': chrom,
+                'start': start - args.breakpoint_slop,
+                'end': start + args.breakpoint_slop,
+                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                'indel': 1
+
+            }
+        )
+        # mate breakpoint
+        temps_and_settings.append(
+            {
+                'chrom': bnd_mate_chrom,
+                'start': bnd_mate_pos - args.breakpoint_slop,
+                'end': bnd_mate_pos + args.breakpoint_slop,
+                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                'indel': 1
+
+            }
+        )
+
     else:
-        command = "{SCRIPT_PATH}/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(SCRIPT_PATH=SCRIPT_PATH, genome=args.genome, start=start, end=end, chrom=chrom, threshold=args.indel_bp_threshold, output=filename+".png")
+        # Typical settings for the main graph
+        temps_and_settings.append(
+            {
+                'chrom': chrom,
+                'start': max(start - args.slop, 1),
+                'end': end + args.slop,
+                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                'indel': args.indel_bp_threshold
+
+            }
+        )
+        if width > 1000: # If wider than a comfortable view, we will print each endpoint as well
+            # left breakpoint
+            temps_and_settings.append(
+                {
+                    'chrom': chrom,
+                    'start': start - args.breakpoint_slop,
+                    'end': start + args.breakpoint_slop,
+                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                    'indel': 1
+
+                }
+            )
+            # right breakpoint
+            temps_and_settings.append(
+                {
+                    'chrom': chrom,
+                    'start': end - args.breakpoint_slop,
+                    'end': end + args.breakpoint_slop,
+                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                    'indel': 1
+
+                }
+            )
+
+    temps = [ x['name'] for x in temps_and_settings ]
+    #print(temps_and_settings)
+    for graph in temps_and_settings:
+        #print((start,end,name,args.slop))
+        command += "{SCRIPT_PATH}/graph_region.sh -g {genome} -c {chrom} -s {start} -e {end} -n {threshold} -o {output}".format(SCRIPT_PATH=SCRIPT_PATH, genome=args.genome, start=graph['start'], end=graph['end'], chrom=graph['chrom'], threshold=graph['indel'], output=graph['name'])
         for bam in args.bams:
             command += ' -b {}'.format(bam)
+        command += ' && '
+    command += SCRIPT_PATH + "/make_pdf.py -o " + filename + ".pdf " + " ".join(temps)
+    #with open(filename + ".pdf", "wb") as pdf:
+    #    pdf.write(img2pdf.convert(['all.png', 'left.png', 'right.png']))
 
-    if args.bsub:
-        command = 'bsub -R rusage[mem=24576] -n 1 -o igv_grapher.log ' + command
     if args.print:
         print(command)
     else:
-        command = command.split(' ')
-        subprocess.call(command)
+        try:
+            if args.bsub:
+                command = 'bsub -R rusage[mem=24576] -n 1 -o igv_grapher.log ' + '"' + command + '"'
+            print("graphing {}".format(filename))
+            time.sleep(1)
+            result = subprocess.run(command, check=True, shell=True, capture_output=True, text=True)
+            if args.bsub:
+                print(result.stdout)
+                print(result.stderr)
+        except subprocess.CalledProcessError as e:
+            print("Captured error {}".format(e))
+            print("****stdout****")
+            print(result.stdout)
+            print("****stderr****")
+            print(result.stderr)
 
-
+# We ought to clean up the tempfiles that we've dumped into scratch, however if we're printing or bsubbing, this function exits before we're done with them
 
 inputfile.close()
