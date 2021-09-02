@@ -1,0 +1,3 @@
+# See https://raw.githubusercontent.com/igvteam/igv/master/scripts/readme.txt for tips on using this file.
+# Uncomment the following line for an 8 GB memory spec for IGV.
+ -Xmx16G
