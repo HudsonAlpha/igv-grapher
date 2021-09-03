@@ -1,4 +1,4 @@
-#!/usr/bin/env /cluster/home/jlawlor/envs/igvgraph/bin/python3.9
+#!/usr/bin/env /cluster/lab/gcooper/virtualenvironments/igvgraph/bin/python3.9
 from __future__ import print_function
 import argparse
 import img2pdf
