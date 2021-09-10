@@ -1,4 +1,4 @@
-#!/usr/bin/env /cluster/lab/gcooper/virtualenvironments/igvgraph/bin/python3.9
+#!/usr/bin/env cd ents/igvgraph/bin/python3.9
 from __future__ import print_function
 import argparse
 import gzip
@@ -39,7 +39,7 @@ if args.vcf.endswith('gz'):
     inputfile = gzip.open(args.vcf, 'rt')
 else:
     inputfile = open(args.vcf, 'r')
-variant_text = tempfile.mkstemp(suffix='.txt', dir='/scratch/lab/gcooper/')[1]
+
 header = ""
 for line in inputfile:
     if line.startswith('#'):
@@ -67,7 +67,7 @@ for line in inputfile:
     info_dict = {x.split('=')[0]: x.split('=')[1] for x in info.split(';') if '=' in x}
     #info_list = [x: True for x in info.split(';') if '=' not in x]
     # Get original start and end. Do this first so we have a trace in filename
-
+    variant_text = tempfile.mkstemp(suffix='.txt', dir='/scratch/lab/gcooper/')[1]
     with open(variant_text, 'wt') as f:
         f.write("HEADER: {}\n\n\n".format(header))
         f.write("CHROM: {}\n\n\n".format(chrom))
