@@ -1,4 +1,4 @@
-#!/usr/bin/env cd ents/igvgraph/bin/python3.9
+#!/usr/bin/env /cluster/lab/gcooper/virtualenvironments/igvgraph/
 from __future__ import print_function
 import argparse
 import gzip
@@ -67,7 +67,7 @@ for line in inputfile:
     info_dict = {x.split('=')[0]: x.split('=')[1] for x in info.split(';') if '=' in x}
     #info_list = [x: True for x in info.split(';') if '=' not in x]
     # Get original start and end. Do this first so we have a trace in filename
-    variant_text = tempfile.mkstemp(suffix='.txt', dir='/scratch/lab/gcooper/')[1]
+    variant_text = tempfile.mkstemp(suffix='.txt', dir='/scratch/lab/gcooper/igv_grapher')[1]
     with open(variant_text, 'wt') as f:
         f.write("HEADER: {}\n\n\n".format(header))
         f.write("CHROM: {}\n\n\n".format(chrom))
@@ -146,7 +146,7 @@ for line in inputfile:
                 'chrom': chrom,
                 'start': start - args.breakpoint_slop,
                 'end': start + args.breakpoint_slop,
-                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/igv_grapher')[1],
                 'indel': 1
 
             }
@@ -157,7 +157,7 @@ for line in inputfile:
                 'chrom': bnd_mate_chrom,
                 'start': bnd_mate_pos - args.breakpoint_slop,
                 'end': bnd_mate_pos + args.breakpoint_slop,
-                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/igv_grapher')[1],
                 'indel': 1
 
             }
@@ -171,7 +171,7 @@ for line in inputfile:
                     'chrom': chrom,
                     'start': max(start - slop, 1),
                     'end': end + slop,
-                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/igv_grapher')[1],
                     'indel': args.indel_bp_threshold
 
                 }
@@ -184,7 +184,7 @@ for line in inputfile:
                     'chrom': chrom,
                     'start': start - args.breakpoint_slop,
                     'end': start + args.breakpoint_slop,
-                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/igv_grapher')[1],
                     'indel': 1
 
                 }
@@ -195,7 +195,7 @@ for line in inputfile:
                     'chrom': chrom,
                     'start': end - args.breakpoint_slop,
                     'end': end + args.breakpoint_slop,
-                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/')[1],
+                    'name': tempfile.mkstemp(suffix='.png', dir='/scratch/lab/gcooper/igv_grapher')[1],
                     'indel': 1
 
                 }
