@@ -1,5 +1,5 @@
 #!/bin/bash
-PATH=/gpfs/gpfs2/software/utils/xvfb:$PATH
+PATH=/cluster/software/utils/xvfb:$PATH
 export IGV_MEM=16384m
 GENOME="/cluster/lab/gcooper/igv-grapher/genomes/hg38/hg38.genome"
 INDEL_BP_THRESHOLD=1
