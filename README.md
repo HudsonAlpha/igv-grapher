@@ -1,4 +1,6 @@
 # igv-grapher
+This is a tool used internally at the HudsonAlpha Institute for Biotechnology and is presented for the purposes of publication. It has not been designed to be portable outside of the HudsonAlpha compute cluster, so use elsewhere will require customization.
+
 ## Overview
 Given a BED file and either a bed file of genomic regions or VCF of structural variant calls, use IGV in headless mode to make graphs.
 
